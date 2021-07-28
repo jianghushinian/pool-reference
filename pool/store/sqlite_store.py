@@ -192,3 +192,16 @@ class SqlitePoolStore(AbstractPoolStore):
         rows = await cursor.fetchall()
         ret: List[Tuple[uint64, uint64]] = [(uint64(timestamp), uint64(difficulty)) for timestamp, difficulty in rows]
         return ret
+
+    async def get_recent_points(self, timestamp: uint64) -> List[Tuple[bytes32, uint64]]:
+        cursor = await self.connection.execute(
+            "SELECT launcher_id, difficulty FROM partial WHERE timestamp>=?",
+            (timestamp,),
+        )
+        rows = await cursor.fetchall()
+        await cursor.close()
+        ret: List[Tuple[bytes32, uint64]] = [
+            (bytes32(bytes.fromhex(launcher_id)), uint64(difficulty))
+            for launcher_id, difficulty in rows
+        ]
+        return ret

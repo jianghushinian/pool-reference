@@ -99,7 +99,7 @@ class PoolServer:
         return inner
 
     async def index(self, _) -> web.Response:
-        return web.Response(text="Chia reference pool")
+        return web.Response(text=self.pool.welcome_message)
 
     async def get_pool_info(self, _) -> web.Response:
         res: GetPoolInfoResponse = GetPoolInfoResponse(
@@ -276,6 +276,27 @@ class PoolServer:
 
         return obj_to_response(response)
 
+    # ==================== Custom API ====================
+
+    async def get_pool_capacity(self, request_obj) -> web.Response:
+        query_unit = request_obj.rel_url.query.get("unit", "").lower()
+        try:
+            query_hours = int(request_obj.rel_url.query.get("hours", 24))
+        except ValueError:
+            query_hours = 24
+
+        if query_unit == "tib":
+            unit = "TiB"
+        else:
+            unit = "PiB"
+        if 0 < query_hours <= 24:
+            hours = query_hours
+        else:
+            hours = 24
+
+        response: Dict = await self.pool.calculate_24_hours_pool_capacity(unit, hours)
+        return obj_to_response(response)
+
 
 server: Optional[PoolServer] = None
 runner: Optional[aiohttp.web.BaseRunner] = None
@@ -300,6 +321,9 @@ async def start_pool_server(pool_store: Optional[AbstractPoolStore] = None):
             web.put("/farmer", server.wrap_http_handler(server.put_farmer)),
             web.post("/partial", server.wrap_http_handler(server.post_partial)),
             web.get("/login", server.wrap_http_handler(server.get_login)),
+
+            # Custom API
+            web.get("/pool_capacity", server.wrap_http_handler(server.get_pool_capacity)),
         ]
     )
     runner = aiohttp.web.AppRunner(app, access_log=None)
