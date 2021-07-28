@@ -1,9 +1,11 @@
 import asyncio
+import datetime
 import logging
 import pathlib
 import time
 import traceback
 from asyncio import Task
+from collections import defaultdict
 from math import floor
 from typing import Dict, Optional, Set, List, Tuple, Callable
 
@@ -879,3 +881,31 @@ class Pool:
                     current_difficulty = new_difficulty
 
         return PostPartialResponse(current_difficulty).to_json_dict()
+
+    async def calculate_24_hours_pool_capacity(self, unit: str) -> Dict:
+        """
+        calculate 24 hours pool capacity
+        https://github.com/Chia-Network/chia-blockchain/wiki/Pooling-FAQ#how-does-one-calculate-a-farmers-netspace
+        """
+        yesterday = datetime.datetime.now() - datetime.timedelta(hours=24)
+        timestamp = uint64(int(yesterday.timestamp()))
+        units: Dict = {
+            "pib": 5,
+            "tib": 4,
+        }
+
+        points = await self.store.get_recent_points(timestamp)
+        each_farmer_points: Dict[bytes32, uint64] = defaultdict(lambda: uint64(0))
+        each_farmer_capacity: Dict[bytes32, float] = defaultdict(float)
+
+        for launcher_id, point in points:
+            each_farmer_points[launcher_id] += point
+
+        for launcher_id, point in each_farmer_points.items():
+            each_farmer_capacity[launcher_id] = float(point) / (86400 * 1.088e-15) / (1024 ** units[unit])
+
+        pool_capacity: float = sum(point for point in each_farmer_capacity.values())
+        response_dict = {
+            "pool_capacity": pool_capacity,
+        }
+        return response_dict

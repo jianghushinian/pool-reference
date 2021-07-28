@@ -276,6 +276,16 @@ class PoolServer:
 
         return obj_to_response(response)
 
+    # ==================== Custom API ====================
+    async def get_pool_capacity(self, request_obj) -> web.Response:
+        query_unit = request_obj.rel_url.query.get("unit", "").lower()
+        if query_unit == "tib":
+            unit = "tib"
+        else:
+            unit = "pib"
+        response: Dict = await self.pool.calculate_24_hours_pool_capacity(unit)
+        return obj_to_response(response)
+
 
 server: Optional[PoolServer] = None
 runner: Optional[aiohttp.web.BaseRunner] = None
@@ -300,6 +310,9 @@ async def start_pool_server(pool_store: Optional[AbstractPoolStore] = None):
             web.put("/farmer", server.wrap_http_handler(server.put_farmer)),
             web.post("/partial", server.wrap_http_handler(server.post_partial)),
             web.get("/login", server.wrap_http_handler(server.get_login)),
+
+            # Custom API
+            web.get("/pool_capacity", server.wrap_http_handler(server.get_pool_capacity)),
         ]
     )
     runner = aiohttp.web.AppRunner(app, access_log=None)
