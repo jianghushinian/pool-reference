@@ -376,6 +376,12 @@ class Pool:
                     await asyncio.sleep(120)
                     continue
 
+                peak_height = self.blockchain_state["peak"].height
+                self.log.info(
+                    f"Scanning for (pool) block rewards from {self.scan_start_height} to {peak_height}. "
+                    f"Found: {len(coin_records)}"
+                )
+
                 total_amount_claimed = sum([c.coin.amount for c in coin_records])
                 pool_coin_amount = int(total_amount_claimed * self.pool_fee)
                 amount_to_distribute = total_amount_claimed - pool_coin_amount
